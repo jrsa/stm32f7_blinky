@@ -1,36 +1,32 @@
-#include <stm32f7xx.h>
+#include <stm32f7xx_hal.h>
 
 int main(int argc, char* argv[])
 {
-    // gpio clock for led
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOJEN;
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
+    GPIO_InitTypeDef led_gpio_init;
 
-    // led gpio pins as output
-    GPIOJ->MODER |= (1 << (13 << 1));
-    GPIOJ->MODER |= (1 << (5 << 1));
-    GPIOA->MODER |= (1 << (12 << 1));
- 
-    // led gpio max speed
-    GPIOJ->OSPEEDR |= (3 << (13 << 1));
-    GPIOJ->OSPEEDR |= (3 << (5 << 1));
-    GPIOA->OSPEEDR |= (3 << (12 << 1));
-    
-    int t = 0, bbval = 0, shift = 0;
+    HAL_Init();
+    __HAL_RCC_GPIOJ_CLK_ENABLE();
 
-    while(1)
-    {
-        t++; // hello old friend
-        int bbval = ((t << 1) ^ ((t << 1) + (t >> 7) & t >> 12)) | t >> (4 - (1 ^ 7 & (t >> 15))) | t >> 7;
+    led_gpio_init.Pin = GPIO_PIN_5 | GPIO_PIN_13;
+    led_gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
+    led_gpio_init.Pull = GPIO_NOPULL;
+    led_gpio_init.Speed = GPIO_SPEED_LOW;
+    HAL_GPIO_Init(GPIOJ, &led_gpio_init);
 
-        // PA0 is blue button on discovery board
-        // this is really bad, if this is done in an interrupt there will only be one update per button press
-        shift = (shift + (GPIOA->IDR & 1)) % 4;
+    uint32_t t = 0;
 
-        GPIOJ->ODR = (((bbval >> shift) << 13) | ((bbval >> (shift + 3)) << 5));
-        GPIOA->ODR = ((bbval >> (shift + 1)) << 12);
-
-        for(volatile int i = 0; i < 10000; i++)
-            ;
+    while (1) {
+        t = HAL_GetTick();
+        if (!(t % 400)) {
+            HAL_GPIO_TogglePin(GPIOJ, GPIO_PIN_13);
+        }
+        if (!(t % 700)) {
+            HAL_GPIO_TogglePin(GPIOJ, GPIO_PIN_5);
+        }
     }
+}
+
+void SysTick_Handler(void)
+{
+    HAL_IncTick();
 }
